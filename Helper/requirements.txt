@@ -1,5 +1,5 @@
+anthropic
 flask
 flask-bcrypt
 flask-sqlalchemy
-anthropic
 psycopg2-binary
