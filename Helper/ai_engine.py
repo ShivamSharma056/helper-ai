@@ -1,34 +1,35 @@
 """
 ai_engine.py  —  Helper.ai generation functions
-Uses Google Gemini API (gemini-2.0-flash) — free tier available.
-Install:  pip install google-generativeai
-Set env:  GEMINI_API_KEY=your_key
+Uses Groq API (llama-3.3-70b-versatile) — completely free tier.
+Install:  pip install groq
+Set env:  GROQ_API_KEY=your_key
 """
 
 import os, json, re
-import google.generativeai as genai
+from groq import Groq
 
-# Configure Gemini client
-API_KEY = os.environ.get('GEMINI_API_KEY', '').strip()
+# Configure Groq client
+API_KEY = os.environ.get('GROQ_API_KEY', '').strip()
 
 if not API_KEY:
-    _model = None
+    _client = None
 else:
-    genai.configure(api_key=API_KEY)
-    _model = genai.GenerativeModel('gemini-2.0-flash')
+    _client = Groq(api_key=API_KEY)
 
 # ── Shared helper ────────────────────────────────────────────────
-def _ask(prompt: str, max_tokens: int = 2000) -> str:
-    if not _model:
-        raise Exception("Gemini API key not configured. Please set GEMINI_API_KEY in Vercel Environment Variables.")
-    response = _model.generate_content(
-        prompt,
-        generation_config=genai.types.GenerationConfig(
-            max_output_tokens=max_tokens,
-            temperature=0.7,
-        )
+def _ask(system: str, user: str, max_tokens: int = 2000) -> str:
+    if not _client:
+        raise Exception("Groq API key not configured. Please set GROQ_API_KEY in Vercel Environment Variables.")
+    response = _client.chat.completions.create(
+        model="llama-3.3-70b-versatile",
+        max_tokens=max_tokens,
+        temperature=0.7,
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user",   "content": user}
+        ]
     )
-    return response.text.strip()
+    return response.choices[0].message.content.strip()
 
 def _parse_json(raw: str) -> dict | list:
     """Strip markdown fences then parse JSON."""
@@ -38,10 +39,11 @@ def _parse_json(raw: str) -> dict | list:
 
 # ── PPT Generator ─────────────────────────────────────────────────
 def generate_ppt(topic: str) -> dict:
+    system = (
+        "You are an expert presentation designer. "
+        "Respond ONLY with valid JSON — no markdown, no extra text."
+    )
     prompt = f"""
-You are an expert presentation designer.
-Respond ONLY with valid JSON — no markdown, no extra text.
-
 Create a complete presentation on: "{topic}"
 
 Return JSON with this exact structure:
@@ -68,16 +70,17 @@ Rules:
 - speaker_notes: 1-2 sentences per slide
 - body: concise paragraph (1-3 sentences)
 """
-    raw = _ask(prompt, max_tokens=3000)
+    raw = _ask(system, prompt, max_tokens=3000)
     data = _parse_json(raw)
     return data if isinstance(data, dict) else {'slides': data}
 
 # ── Report Generator ──────────────────────────────────────────────
 def generate_report(topic: str) -> dict:
+    system = (
+        "You are an expert academic report writer. "
+        "Respond ONLY with valid JSON — no markdown, no extra text."
+    )
     prompt = f"""
-You are an expert academic report writer.
-Respond ONLY with valid JSON — no markdown, no extra text.
-
 Generate a structured academic report on: "{topic}"
 
 Return JSON:
@@ -100,15 +103,16 @@ Return JSON:
 Each section content should be 2-4 solid paragraphs.
 References should list 3-5 credible sources.
 """
-    raw = _ask(prompt, max_tokens=4000)
+    raw = _ask(system, prompt, max_tokens=4000)
     return _parse_json(raw)
 
 # ── Smart Notes Generator ─────────────────────────────────────────
 def generate_notes(text: str) -> dict:
+    system = (
+        "You are an expert study-notes creator. "
+        "Respond ONLY with valid JSON — no markdown, no extra text."
+    )
     prompt = f"""
-You are an expert study-notes creator.
-Respond ONLY with valid JSON — no markdown, no extra text.
-
 Convert the following input into clean, structured study notes:
 
 INPUT:
@@ -138,5 +142,5 @@ Rules:
 - flashcards: 5-8 Q&A pairs for exam prep
 - exam_tips: 2-4 actionable study tips
 """
-    raw = _ask(prompt, max_tokens=3000)
+    raw = _ask(system, prompt, max_tokens=3000)
     return _parse_json(raw)
