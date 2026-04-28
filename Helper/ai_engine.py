@@ -1,6 +1,6 @@
 """
 ai_engine.py  —  Helper.ai generation functions
-Uses Google Gemini API (gemini-1.5-flash) — free tier available.
+Uses Google Gemini API (gemini-2.0-flash) — free tier available.
 Install:  pip install google-generativeai
 Set env:  GEMINI_API_KEY=your_key
 """
@@ -15,7 +15,7 @@ if not API_KEY:
     _model = None
 else:
     genai.configure(api_key=API_KEY)
-    _model = genai.GenerativeModel('gemini-1.5-flash')
+    _model = genai.GenerativeModel('gemini-2.0-flash')
 
 # ── Shared helper ────────────────────────────────────────────────
 def _ask(prompt: str, max_tokens: int = 2000) -> str:
