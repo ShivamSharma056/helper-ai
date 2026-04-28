@@ -1,5 +1,5 @@
-anthropic
 flask
 flask-bcrypt
 flask-sqlalchemy
+google-generativeai
 psycopg2-binary
