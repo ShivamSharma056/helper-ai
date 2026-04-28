@@ -1,30 +1,34 @@
 """
 ai_engine.py  —  Helper.ai generation functions
-Uses the Anthropic Python SDK (claude-sonnet-4-5-20251001).
+Uses Google Gemini API (gemini-1.5-flash) — free tier available.
+Install:  pip install google-generativeai
+Set env:  GEMINI_API_KEY=your_key
 """
 
 import os, json, re
-import anthropic
+import google.generativeai as genai
 
-# No dotenv needed on Vercel — env vars are injected automatically
-API_KEY = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+# Configure Gemini client
+API_KEY = os.environ.get('GEMINI_API_KEY', '').strip()
 
 if not API_KEY:
-    _client = None
+    _model = None
 else:
-    _client = anthropic.Anthropic(api_key=API_KEY)
+    genai.configure(api_key=API_KEY)
+    _model = genai.GenerativeModel('gemini-1.5-flash')
 
 # ── Shared helper ────────────────────────────────────────────────
-def _ask(system: str, user: str, max_tokens: int = 2000) -> str:
-    if not _client:
-        raise Exception("Anthropic API key not configured. Please set ANTHROPIC_API_KEY in Vercel Environment Variables.")
-    msg = _client.messages.create(
-        model='claude-haiku-4-5-20251001',
-        max_tokens=max_tokens,
-        system=system,
-        messages=[{'role': 'user', 'content': user}]
+def _ask(prompt: str, max_tokens: int = 2000) -> str:
+    if not _model:
+        raise Exception("Gemini API key not configured. Please set GEMINI_API_KEY in Vercel Environment Variables.")
+    response = _model.generate_content(
+        prompt,
+        generation_config=genai.types.GenerationConfig(
+            max_output_tokens=max_tokens,
+            temperature=0.7,
+        )
     )
-    return msg.content[0].text.strip()
+    return response.text.strip()
 
 def _parse_json(raw: str) -> dict | list:
     """Strip markdown fences then parse JSON."""
@@ -34,11 +38,10 @@ def _parse_json(raw: str) -> dict | list:
 
 # ── PPT Generator ─────────────────────────────────────────────────
 def generate_ppt(topic: str) -> dict:
-    system = (
-        "You are an expert presentation designer. "
-        "Respond ONLY with valid JSON — no markdown, no extra text."
-    )
     prompt = f"""
+You are an expert presentation designer.
+Respond ONLY with valid JSON — no markdown, no extra text.
+
 Create a complete presentation on: "{topic}"
 
 Return JSON with this exact structure:
@@ -65,17 +68,16 @@ Rules:
 - speaker_notes: 1-2 sentences per slide
 - body: concise paragraph (1-3 sentences)
 """
-    raw = _ask(system, prompt, max_tokens=3000)
+    raw = _ask(prompt, max_tokens=3000)
     data = _parse_json(raw)
     return data if isinstance(data, dict) else {'slides': data}
 
 # ── Report Generator ──────────────────────────────────────────────
 def generate_report(topic: str) -> dict:
-    system = (
-        "You are an expert academic report writer. "
-        "Respond ONLY with valid JSON — no markdown, no extra text."
-    )
     prompt = f"""
+You are an expert academic report writer.
+Respond ONLY with valid JSON — no markdown, no extra text.
+
 Generate a structured academic report on: "{topic}"
 
 Return JSON:
@@ -83,30 +85,30 @@ Return JSON:
   "title": "...",
   "abstract": "...",
   "sections": [
-    {{"heading": "Introduction",        "content": "..."}},
-    {{"heading": "Problem Statement",   "content": "..."}},
-    {{"heading": "Methodology",         "content": "..."}},
-    {{"heading": "Results & Analysis",  "content": "..."}},
+    {{"heading": "Introduction",         "content": "..."}},
+    {{"heading": "Problem Statement",    "content": "..."}},
+    {{"heading": "Methodology",          "content": "..."}},
+    {{"heading": "Results & Analysis",   "content": "..."}},
     {{"heading": "Solution / Discussion","content": "..."}},
-    {{"heading": "Conclusion",          "content": "..."}},
-    {{"heading": "References",          "content": "..."}}
+    {{"heading": "Conclusion",           "content": "..."}},
+    {{"heading": "References",           "content": "..."}}
   ],
   "word_count_estimate": 1200,
   "keywords": ["...", "..."]
 }}
 
-Each section content should be 2-4 solid paragraphs. References should list 3-5 credible sources.
+Each section content should be 2-4 solid paragraphs.
+References should list 3-5 credible sources.
 """
-    raw = _ask(system, prompt, max_tokens=4000)
+    raw = _ask(prompt, max_tokens=4000)
     return _parse_json(raw)
 
 # ── Smart Notes Generator ─────────────────────────────────────────
 def generate_notes(text: str) -> dict:
-    system = (
-        "You are an expert study-notes creator. "
-        "Respond ONLY with valid JSON — no markdown, no extra text."
-    )
     prompt = f"""
+You are an expert study-notes creator.
+Respond ONLY with valid JSON — no markdown, no extra text.
+
 Convert the following input into clean, structured study notes:
 
 INPUT:
@@ -136,5 +138,5 @@ Rules:
 - flashcards: 5-8 Q&A pairs for exam prep
 - exam_tips: 2-4 actionable study tips
 """
-    raw = _ask(system, prompt, max_tokens=3000)
+    raw = _ask(prompt, max_tokens=3000)
     return _parse_json(raw)
