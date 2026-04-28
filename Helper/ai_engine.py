@@ -1,19 +1,14 @@
 """
 ai_engine.py  —  Helper.ai generation functions
-Uses the Anthropic Python SDK (claude-sonnet-4-20250514).
-Install:  pip install anthropic
-Set env:  ANTHROPIC_API_KEY=your_key
+Uses the Anthropic Python SDK (claude-sonnet-4-5-20251001).
 """
 
 import os, json, re
 import anthropic
-from dotenv import load_dotenv
 
-# Load environment variables
-load_dotenv()
-
-# Check if API key is available
+# No dotenv needed on Vercel — env vars are injected automatically
 API_KEY = os.environ.get('ANTHROPIC_API_KEY', '').strip()
+
 if not API_KEY:
     _client = None
 else:
@@ -22,9 +17,9 @@ else:
 # ── Shared helper ────────────────────────────────────────────────
 def _ask(system: str, user: str, max_tokens: int = 2000) -> str:
     if not _client:
-        raise Exception("Anthropic API key not configured. Please set ANTHROPIC_API_KEY environment variable.")
+        raise Exception("Anthropic API key not configured. Please set ANTHROPIC_API_KEY in Vercel Environment Variables.")
     msg = _client.messages.create(
-        model='claude-sonnet-4-20250514',
+        model='claude-haiku-4-5-20251001',
         max_tokens=max_tokens,
         system=system,
         messages=[{'role': 'user', 'content': user}]
@@ -88,7 +83,7 @@ Return JSON:
   "title": "...",
   "abstract": "...",
   "sections": [
-    {{"heading": "Introduction",       "content": "..."}},
+    {{"heading": "Introduction",        "content": "..."}},
     {{"heading": "Problem Statement",   "content": "..."}},
     {{"heading": "Methodology",         "content": "..."}},
     {{"heading": "Results & Analysis",  "content": "..."}},
